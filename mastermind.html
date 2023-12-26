@@ -1,0 +1,276 @@
+<head>
+    <title>Cheating at Bulls and Cows</title>
+</head>
+<body>
+    <button onclick="guessNormal();">Guess Normal</button>
+    <button onclick="guessUnfair();">Guess Unfair</button>
+    <button onclick="answerNormal();">Answer</button>
+    <br/>
+    Digits: <select id='digits'>
+        <option value="2">2</option>
+        <option selected="selected" value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+    </select>
+    Number of Guesses: <select id="numGuesses">
+        <option value="0">Infinite</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6" selected="selected">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+        <option value="11">11</option>
+        <option value="12">12</option>
+        <option value="13">13</option>
+        <option value="14">14</option>
+        <option value="15">15</option>
+    </select>
+    <br/>
+    <input type="text" id="entry" style="visibility: hidden">
+    <div id="responseBox" style="visibility: hidden">
+        Bulls: <select id="numBulls"></select>
+        Cows: <select id="numCows"></select>
+        <button id="submitBullsCows">Submit</button>
+    </div>
+    <p id="gameLog"></p>
+    <script>
+        const SIZE_CUTOFF = 4;
+        var digits = "0123456789";
+        function getNumber(numDigits){
+            var output = "";
+            for(var i = 0; i < numDigits; i++){
+                output+=digits[Math.floor(Math.random()*digits.length)];
+            }
+            return output;
+        }
+        const outputP = document.getElementById("gameLog");
+        const entry = document.getElementById("entry");
+        const responseBox = document.getElementById("responseBox");
+        const numBullsAnswerBox = document.getElementById("numBulls");
+        const numCowsAnswerBox = document.getElementById("numCows");
+        function writeText(str){
+            outputP.innerHTML+="<p>"+str+"</p>"
+        }
+        function clearText(){
+            outputP.innerHTML="";
+        }
+        function guessNormal(){
+            clearText();
+            var number = getNumber(parseInt(document.getElementById('digits').value));
+            var numGuesses = parseInt(document.getElementById('numGuesses').value);
+            writeText("Starting normal game (player guesses).");
+            entry.style.visibility="visible";
+            responseBox.style.visibility="hidden";
+            entry.onkeyup=(e)=>{
+                if(e.key=="Enter"){
+                    var textValue = e.target.value;
+                    var result = getBullsAndCows(textValue,number);
+                    numGuesses--;
+                    if(result.correct){
+                        writeText("Correct! Game over. The answer was " + number);
+                        e.target.onkeyup=()=>{};
+                    }else if(numGuesses == 0){
+                        writeText("Incorrect! Game over. The answer was " + number);
+                        e.target.onkeyup=()=>{};
+                    }else{
+                        writeText(result.hint.text + ". " + (numGuesses>0?(numGuesses + " guesses remaining."):""));
+                    }
+                }
+            }
+        }
+        function getBullsAndCows(guess,answer){
+            if(guess.length > answer.length){
+                return {correct:false,text:"Invalid Guess",numBulls:0,numCows:0};
+            }
+            while(guess.length < answer.length){
+                guess="0"+guess;
+            }
+            var numBulls = 0;
+            var numRawMatches = 0;
+            var numCows = 0;
+            var nextAnswer = answer.split("");
+            var nextGuess = guess.split("");
+            for(var i = 0; i < answer.length; i++){
+                if(answer[i]==guess[i]){
+                    numBulls++;
+                    nextAnswer[i]="*";
+                    nextGuess[i]="-";
+                }
+            }
+            for(var i = 0; i < answer.length; i++){
+                if(nextAnswer.indexOf(nextGuess[i])>-1){
+                    numCows++;
+                }
+            }
+            return {guess:guess,correct:guess==answer,text:guess + ": " + numBulls + " Bull" + (numBulls == 1 ? "":"s") + ", " + numCows + " Cow" + (numCows == 1 ? "":"s"),bulls:numBulls,cows:numCows};
+        }
+        function getOptions(numDigits){
+            var options = [];
+            for(var i = 0; i < Math.pow(10,numDigits); i++){
+                var thisValue = ""+i;
+                while(thisValue.length < numDigits){
+                    thisValue="0"+thisValue;
+                }
+                options.push(thisValue);
+            }
+            return options;
+        }
+        function answerNormal(){
+            clearText();
+            entry.style.visibility="hidden";
+            responseBox.style.visibility="visible";
+            while(numBullsAnswerBox.children.length>0){
+                numBullsAnswerBox.removeChild(numBullsAnswerBox.children[0]);
+                numCowsAnswerBox.removeChild(numCowsAnswerBox.children[0]);
+            }
+            var numGuesses = parseInt(document.getElementById('numGuesses').value);
+            var numDigits = parseInt(document.getElementById('digits').value);
+            for(var i = 0; i < numDigits+1; i++){
+                var option ="<option value='"+i+"'>"+i+"</option>";
+                numBullsAnswerBox.innerHTML+=option;
+                numCowsAnswerBox.innerHTML+=option;
+            }
+            writeText("Starting normal game (player answers).");
+            var submitButton = document.getElementById("submitBullsCows");
+            var options = getOptions(numDigits);
+            
+            var ogOptions = [].concat(options);
+            var guess = getBestGuess(ogOptions,options);
+            writeText("Guess: " + guess);
+            var hintsSoFar = [];
+            submitButton.onclick = (e)=>{
+                //For now, naive strategy to get a random potential number
+                var nextHint = {guess: guess, bulls: parseInt(numBullsAnswerBox.value), cows: parseInt(numCowsAnswerBox.value)};
+                writeText("Answer for " + guess + ": " + nextHint.bulls + " Bulls, " + nextHint.cows + " Cows");
+                // hintsSoFar.push(nextHints);
+                options = options.filter((i)=>{return matchesHint(i,nextHint)});
+                if(options.length==0){
+                    writeText("No valid answers found. You cheated!");
+                    submitButton.onclick = (e)=>{};
+                    return;
+                }
+                if(options.length==1 && options[0]==guess){
+                    writeText("Answer found! It's " + guess);
+                    submitButton.onclick = (e)=>{};
+                    return;
+                }
+                guess = getBestGuess(ogOptions,options);
+                writeText("Guess: " + guess);
+                console.log(options,hintsSoFar);
+            }
+        }
+        function hintsEqual(hints1,hints2){
+            for(var i = 0; i < hints1.length; i++){
+                if(hints1[i].bulls != hints2[i].bulls || hints1[i].cows != hints2[i].cows){
+                    return false;
+                }
+            }
+            return true;
+        }
+        function matchesHint(number,hint){
+            var hintForNumber = getBullsAndCows(hint.guess,number);
+            // console.log(hintsForNumber,hintsSoFar);
+            return hint.bulls == hintForNumber.bulls && hint.cows == hintForNumber.cows
+        }
+        //TODO: Test to see if this is better than random valid guess strategy
+        //Could I come up with other strategies?
+        //Oh wait you can guess things that are inconsistent with the hints so far!
+        function getBestGuess(fullOptions,options){
+            if(options.length==1){
+                return options[0];
+            }
+            var nextStates = [];
+            var numberLength = options[0].length;
+            if(numberLength>=SIZE_CUTOFF){
+                return options[Math.floor(Math.random()*options.length)];
+            }
+            var minUtilitySoFar = Number.MAX_SAFE_INTEGER;
+            var answerSoFar = null;
+            for(var i = 0; i < fullOptions.length; i++){
+                //Maximum possible values left after asking the question.
+                var maxUtilitySoFar = Number.MIN_SAFE_INTEGER;
+                var cowBullValuesSoFar = {cows:-1,bulls:-1};
+                for(var bulls = 0; bulls <= numberLength; bulls++){
+                    for(var cows = 0; cows <= numberLength-bulls; cows++){
+                        var nextHint = {guess:fullOptions[i],cows:cows,bulls:bulls}
+                        var nextOptions = options.filter((i)=>{return matchesHint(i,nextHint)});
+                        var utility = nextOptions.length;
+                        if(utility > maxUtilitySoFar){
+                            cowBullValuesSoFar = {cows:cows,bulls:bulls};
+                            maxUtilitySoFar=utility;
+                        }
+                    }
+                }
+                if(maxUtilitySoFar < minUtilitySoFar){
+                    minUtilitySoFar = maxUtilitySoFar;
+                    answerSoFar = fullOptions[i];
+                }
+            }
+            return answerSoFar;
+        }
+        function getWorstAnswer(guess,options){
+            /*
+            Look through each potential hint
+            Narrow options accordingly
+            Choose the one that has the most options still available
+            Oh this is just the central 2 loops in getBestGuess by minimax huh
+            */
+            var maxUtilitySoFar = Number.MIN_SAFE_INTEGER;
+            var hintSoFar = {guess:guess,cows:-1,bulls:-1};
+            var newOptions = [].concat(options);
+            var numberLength = options[0].length;
+            for(var bulls = 0; bulls <= numberLength; bulls++){
+                for(var cows = 0; cows <= numberLength-bulls; cows++){
+                    var nextHint = {guess:guess,bulls:bulls,cows:cows};
+                    var nextOptions = options.filter((i)=>{return matchesHint(i,nextHint)});
+                    var utility = nextOptions.length;
+                    if(utility > maxUtilitySoFar){
+                        hintSoFar = {cows:cows,bulls:bulls};
+                        maxUtilitySoFar=utility;
+                        newOptions = nextOptions;
+                    }
+                }
+            }
+            return {hint: getBullsAndCows(guess,newOptions[0]), options:newOptions};
+        }
+
+        function guessUnfair(){
+            clearText();
+            var numDigits = parseInt(document.getElementById('digits').value);
+            var number = getNumber(numDigits);
+            var numGuesses = parseInt(document.getElementById('numGuesses').value);
+            writeText("Starting normal game (player guesses).");
+            entry.style.visibility="visible";
+            responseBox.style.visibility="hidden";
+            var options = getOptions(numDigits);
+            entry.onkeyup=(e)=>{
+                if(e.key=="Enter"){
+                    var textValue = e.target.value;
+                    while(textValue.length < numDigits){
+                        textValue="0"+textValue;
+                    }
+                    var result = getWorstAnswer(textValue,options);
+                    options=result.options;
+                    var hint = result.hint;
+                    numGuesses--;
+                    if(result.hint.correct){
+                        writeText("Correct! Game over. The answer was " + textValue);
+                        e.target.onkeyup=()=>{};
+                    }else if(numGuesses == 0){
+                        writeText("Incorrect! Game over. The answer was " + options[0]);
+                        e.target.onkeyup=()=>{};
+                    }else{
+                        writeText(result.hint.text + ". " + (numGuesses>0?(numGuesses + " guesses remaining."):""));
+                    }
+                    console.log(options);
+                }
+            }
+        }
+    </script>
+</body>

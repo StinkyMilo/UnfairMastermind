@@ -79,7 +79,7 @@
                         writeText("Incorrect! Game over. The answer was " + number);
                         e.target.onkeyup=()=>{};
                     }else{
-                        writeText(result.hint.text + ". " + (numGuesses>0?(numGuesses + " guesses remaining."):""));
+                        writeText(result.text + ". " + (numGuesses>0?(numGuesses + " guesses remaining."):""));
                     }
                 }
             }
